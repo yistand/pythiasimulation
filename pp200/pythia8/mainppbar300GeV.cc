@@ -1,19 +1,19 @@
 //====================================================================================================
 //
-// 2017.04.20	Li Yi
-// Modified from main91.cc in pythia8215 rootexamples
+// 2017.11.14	Li Yi
+// Modified from main08.cc in pythia8215 rootexamples
+// generate hard pt bin option
+// to compare the previous hard pt bias option
 //
 //====================================================================================================
 //
-// main91.cc is a part of the PYTHIA event generator.
+// main08.cc is a part of the PYTHIA event generator.
 // Copyright (C) 2016 Torbjorn Sjostrand.
 // PYTHIA is licenced under the GNU GPL version 2, see COPYING for details.
 // Please respect the MCnet Guidelines, see GUIDELINES for details.
 
 // This is a simple test program.
-// It studies the charged multiplicity distribution at the LHC.
-// Modified by Rene Brun, Axel Naumann and Bernhard Meirose
-// to use ROOT for histogramming.
+// It illustrates methods to emphasize generation at high pT.
 
 // Stdlib header file for input and output.
 #include <iostream>
@@ -21,18 +21,12 @@
 // Header file to access Pythia 8 program elements.
 #include "Pythia8/Pythia.h"
 
-// ROOT, for histogramming.
-#include "TH1.h"
-
 // ROOT, for tree.
 #include "TTree.h"
 
-//// ROOT, for interactive graphics.
-//#include "TVirtualPad.h"
-//#include "TApplication.h"
-
 // ROOT, for saving file.
 #include "TFile.h"
+
 
 using namespace Pythia8;
 
@@ -43,50 +37,58 @@ int main(int argc, char* argv[]) {
 		seed = string(argv[1]);
 	}
 	else { 
-		seed = "134123";
+		seed = "171114";
 	}
+	std::cout<<"seed = "<<seed<<std::endl;
 
-	int nEvents = 1e7;
+	// Number of events to generate per bin.
+	int nEvent = 1e6;
 	if(argc>=3)  {
-		nEvents = atoi(argv[2]);
+		nEvent = atoi(argv[2]);
 	}
 
-	//// Create the ROOT application environment.
-	//TApplication theApp("hist", &argc, argv);
+	// Optionally minimize output (almost) to final results.
+	bool smallOutput = true;
 
-	// Create Pythia instance and set it up to generate hard QCD processes
-	// above pTHat = 20 GeV for pp collisions at 14 TeV.
+
+	// Generator.
 	Pythia pythia;
-	//pythia.readString("Tune:pp = 14"); 	// Monash tune https://arxiv.org/pdf/1404.5630.pdf.		// It was actually the default tune for PYTHIA 8.2XXX...
-	pythia.readString("HardQCD:all = on");
-	pythia.readString("PhaseSpace:pTHatMin = 1.");
-	pythia.readString("PhaseSpace:pTHatMax = 60.");
 
-	pythia.readString("Beams:eCM = 200.");
+	// Shorthand for some public members of pythia (also static ones).
+	Settings& settings = pythia.settings;
+	Info& info = pythia.info;
 
-	pythia.readString("Next:numberShowInfo    = 0");
-	pythia.readString("Next:numberShowProcess = 0");
-	pythia.readString("Next:numberShowEvent   = 0");
+	// Optionally limit output to minimal one.
+	if (smallOutput) {
+		pythia.readString("Init:showProcesses = off");
+		pythia.readString("Init:showMultipartonInteractions = off");
+		pythia.readString("Init:showChangedSettings = off");
+		pythia.readString("Init:showChangedParticleData = off");
+		pythia.readString("Next:numberCount = 1000000000");
+		pythia.readString("Next:numberShowInfo = 0");
+		pythia.readString("Next:numberShowProcess = 0");
+		pythia.readString("Next:numberShowEvent = 0");
+	}
 
-	pythia.readString("PhaseSpace:bias2Selection    = on");
-	pythia.readString("PhaseSpace:bias2SelectionPow = 6");
+	pythia.readString("SoftQCD:nonDiffractive = on");
 
+	// Off weak decay
 	pythia.readFile("Config_Pythia8Pion0Off.cmnd");
-
 
 	pythia.readString("Random:setSeed = on"); //wheter to set seed
 	pythia.readString("Random:seed = "+seed); //initial seed!
 
+	// Initialize for CDF p+pbar at 300 GeV.
+	pythia.readString("Beams:idA = 2212");
+	pythia.readString("Beams:idB = -2212");
+	pythia.readString("Beams:eCM = 300.");
 	pythia.init();
 
 	// Create file on which histogram(s) can be saved.
-	TFile* outFile = new TFile(Form("~/Scratch/pythiadata/pythia8215_pp200hard_PionDecayOff_seed%s.root",seed.data()), "RECREATE");
-
-	//// Book histogram.
-	//TH1F *mult = new TH1F("mult","charged multiplicity", 100, -0.5, 799.5);
-	//TH1F *hW = new TH1F("hW","weight", 1000, 0, 0.001);
+	TFile* outFile = new TFile(Form("~/Scratch/pythiadata/pythia8215_ppbar300MB_PionDecayOff_seed%s.root",seed.data()), "RECREATE");
 
 	// Initiate tree
+	double pthat;
 	int eventid;
 	double wt;
 	int npart;
@@ -95,6 +97,7 @@ int main(int argc, char* argv[]) {
 	int charge[MaxArray];
 	int id[MaxArray], status[MaxArray];
 	TTree *tree = new TTree("tree","tree");
+	tree->Branch("pthat",&pthat);
 	tree->Branch("eventid",&eventid);
 	tree->Branch("eventweight",&wt);
 	tree->Branch("npart",&npart);
@@ -106,11 +109,17 @@ int main(int argc, char* argv[]) {
 	tree->Branch("pz",pz,"pz[npart]/F");
 	tree->Branch("energy",energy,"energy[npart]/F");
 
-	// Begin event loop. Generate event; skip if generation aborted.
-	for (int iEvent = 0; iEvent < nEvents; ++iEvent) {
+	// Begin event loop.
+	for (int iEvent = 0; iEvent < nEvent; ++iEvent) {
+
+		// Generate events. Skip if failure.
 		if (!pythia.next()) continue;
 
-		wt = pythia.info.weight();
+		// Fill event.
+		pthat = info.pTHat();
+
+		wt = info.weight();
+
 		eventid = iEvent;
 
 		npart = 0;
@@ -133,19 +142,17 @@ int main(int argc, char* argv[]) {
 		}
 
 		tree->Fill();
+
+		// End of event loop. Statistics.
 	}
-
-	// Statistics on event generation.
 	pythia.stat();
-
-	//// Show histogram. Possibility to close it.
-	//mult->Draw();
-	//std::cout << "\nDouble click on the histogram window to quit.\n";
-	//gPad->WaitPrimitive();
 
 	// Save histogram on file and close file.
 	tree->Write();
 	delete outFile;
+	//tree->Delete();
+	//outfile->Delete();
+
 
 	// Done.
 	return 0;

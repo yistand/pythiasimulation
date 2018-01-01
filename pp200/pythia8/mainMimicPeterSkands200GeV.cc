@@ -1,5 +1,11 @@
 //====================================================================================================
 //
+// 2017.11.20	Li YI
+// try to reproduce Peter Skands's plot at http://mcplots.cern.ch/?query=plots,ppppbar,uemb-hard,nch-vs-pt-trns,Pythia%206.Pythia%206%20vs%208
+// third plot for CMS results.
+//
+//====================================================================================================
+//
 // 2017.04.20	Li Yi
 // Modified from main91.cc in pythia8215 rootexamples
 //
@@ -38,17 +44,13 @@ using namespace Pythia8;
 
 int main(int argc, char* argv[]) {
 
+
 	string seed;
 	if(argc>=2) {
 		seed = string(argv[1]);
 	}
 	else { 
-		seed = "134123";
-	}
-
-	int nEvents = 1e7;
-	if(argc>=3)  {
-		nEvents = atoi(argv[2]);
+		seed = "105892";
 	}
 
 	//// Create the ROOT application environment.
@@ -57,22 +59,7 @@ int main(int argc, char* argv[]) {
 	// Create Pythia instance and set it up to generate hard QCD processes
 	// above pTHat = 20 GeV for pp collisions at 14 TeV.
 	Pythia pythia;
-	//pythia.readString("Tune:pp = 14"); 	// Monash tune https://arxiv.org/pdf/1404.5630.pdf.		// It was actually the default tune for PYTHIA 8.2XXX...
-	pythia.readString("HardQCD:all = on");
-	pythia.readString("PhaseSpace:pTHatMin = 1.");
-	pythia.readString("PhaseSpace:pTHatMax = 60.");
-
-	pythia.readString("Beams:eCM = 200.");
-
-	pythia.readString("Next:numberShowInfo    = 0");
-	pythia.readString("Next:numberShowProcess = 0");
-	pythia.readString("Next:numberShowEvent   = 0");
-
-	pythia.readString("PhaseSpace:bias2Selection    = on");
-	pythia.readString("PhaseSpace:bias2SelectionPow = 6");
-
-	pythia.readFile("Config_Pythia8Pion0Off.cmnd");
-
+	pythia.readFile("Config_MimicPeterSkands200GeV.cmnd");
 
 	pythia.readString("Random:setSeed = on"); //wheter to set seed
 	pythia.readString("Random:seed = "+seed); //initial seed!
@@ -80,7 +67,9 @@ int main(int argc, char* argv[]) {
 	pythia.init();
 
 	// Create file on which histogram(s) can be saved.
-	TFile* outFile = new TFile(Form("~/Scratch/pythiadata/pythia8215_pp200hard_PionDecayOff_seed%s.root",seed.data()), "RECREATE");
+	//TFile* outFile = new TFile(Form("~/Scratch/pythiadata/pythia8215_pp200GeVMB_PSkands_seed105892.root"), "RECREATE");
+	//TFile* outFile = new TFile(Form("~/Scratch/pythiadata/pythia8215_pp200GeVMB_PSkands_seed%s.root",seed.data()), "RECREATE");
+	TFile* outFile = new TFile(Form("/home/fas/caines/ly247/scratch60/pythiadata/pythia8215_pp200GeVMB_PSkands_seed%s.root",seed.data()), "RECREATE");
 
 	//// Book histogram.
 	//TH1F *mult = new TH1F("mult","charged multiplicity", 100, -0.5, 799.5);
@@ -107,6 +96,7 @@ int main(int argc, char* argv[]) {
 	tree->Branch("energy",energy,"energy[npart]/F");
 
 	// Begin event loop. Generate event; skip if generation aborted.
+	int nEvents = pythia.mode("Main:numberOfEvents");
 	for (int iEvent = 0; iEvent < nEvents; ++iEvent) {
 		if (!pythia.next()) continue;
 

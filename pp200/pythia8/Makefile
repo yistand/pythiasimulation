@@ -53,8 +53,16 @@ $(PREFIX_LIB)/libpythia8.a :
                 in the top PYTHIA directory)
 
 # Examples without external dependencies.
-main% : main%.cc $(PREFIX_LIB)/libpythia8.a
-	$(CXX) $^ -o $@ $(CXX_COMMON)
+#main% : main%.cc $(PREFIX_LIB)/libpythia8.a
+#	$(CXX) $^ -o $@ $(CXX_COMMON)
+main%: main%.cc $(PREFIX_LIB)/libpythia8.a
+ifeq ($(ROOT_USE),true)
+	$(CXX) $^ -o $@ -w -I$(ROOT_INCLUDE) $(CXX_COMMON)\
+	 -Wl,-rpath $(ROOT_LIB) `$(ROOT_BIN)root-config --glibs`
+else
+	@echo "Error: $@ requires ROOT"
+endif
+
 
 # GZIP (required).
 main34: $$@.cc $(PREFIX_LIB)/libpythia8.a
@@ -115,6 +123,14 @@ else
 endif
 
 # ROOT (turn off all warnings for readability).
+main91_monashtune: $$@.cc $(PREFIX_LIB)/libpythia8.a
+ifeq ($(ROOT_USE),true)
+	$(CXX) $^ -o $@ -w -I$(ROOT_INCLUDE) $(CXX_COMMON)\
+	 -Wl,-rpath $(ROOT_LIB) `$(ROOT_BIN)root-config --glibs`
+else
+	@echo "Error: $@ requires ROOT"
+endif
+
 main91: $$@.cc $(PREFIX_LIB)/libpythia8.a
 ifeq ($(ROOT_USE),true)
 	$(CXX) $^ -o $@ -w -I$(ROOT_INCLUDE) $(CXX_COMMON)\
@@ -122,15 +138,31 @@ ifeq ($(ROOT_USE),true)
 else
 	@echo "Error: $@ requires ROOT"
 endif
-main92: $$@.cc $$@.h $$@LinkDef.h $(PREFIX_LIB)/libpythia8.a
+#main92: $$@.cc $$@.h $$@LinkDef.h $(PREFIX_LIB)/libpythia8.a
+#ifeq ($(ROOT_USE),true)
+#	export LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(ROOT_LIB);\
+#	 $(ROOT_BIN)rootcint -f $@Dct.cc -c -I$(PREFIX_INCLUDE) $@.h $@LinkDef.h
+#	$(CXX) $@Dct.cc $^ -o $@ -w -I$(ROOT_INCLUDE) $(CXX_COMMON)\
+#	 -Wl,-rpath $(ROOT_LIB) `$(ROOT_BIN)root-config --glibs`
+#else
+#	@echo "Error: $@ requires ROOT"
+#endif
+main08: $$@.cc $(PREFIX_LIB)/libpythia8.a
 ifeq ($(ROOT_USE),true)
-	export LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(ROOT_LIB);\
-	 $(ROOT_BIN)rootcint -f $@Dct.cc -c -I$(PREFIX_INCLUDE) $@.h $@LinkDef.h
-	$(CXX) $@Dct.cc $^ -o $@ -w -I$(ROOT_INCLUDE) $(CXX_COMMON)\
+	$(CXX) $^ -o $@ -w -I$(ROOT_INCLUDE) $(CXX_COMMON)\
 	 -Wl,-rpath $(ROOT_LIB) `$(ROOT_BIN)root-config --glibs`
 else
 	@echo "Error: $@ requires ROOT"
 endif
+
+main08_MPIoff: $$@.cc $(PREFIX_LIB)/libpythia8.a
+ifeq ($(ROOT_USE),true)
+	$(CXX) $^ -o $@ -w -I$(ROOT_INCLUDE) $(CXX_COMMON)\
+	 -Wl,-rpath $(ROOT_LIB) `$(ROOT_BIN)root-config --glibs`
+else
+	@echo "Error: $@ requires ROOT"
+endif
+
 
 # User-written examples for tutorials, without external dependencies.
 mymain% : mymain%.cc $(PREFIX_LIB)/libpythia8.a
